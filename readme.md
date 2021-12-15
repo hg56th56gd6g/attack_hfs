@@ -82,7 +82,11 @@ chrome版本,在请求头里有用,但一般没啥影响,不用管,是**<u>str,�
 
 解压后直接运行"run.bat"
 
-### 链接
+### 链接0
 
 https://jiditaitan.lanzoup.com/b01132vwb
 密码:fjeu
+
+### 链接1
+
+https://github.com/hg56th56gd6g/attack_hfs/releases/tag/1
