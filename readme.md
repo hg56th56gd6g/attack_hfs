@@ -104,3 +104,5 @@ https://jiditaitan.lanzoup.com/b01132vwb
 ### 链接1
 
 https://github.com/hg56th56gd6g/attack_hfs/releases/tag/1
+
+https://github.com/hg56th56gd6g/attack_hfs/releases/tag/2
