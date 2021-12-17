@@ -102,7 +102,7 @@ chrome版本,在请求头里有用,但一般没啥影响,不用管,是**<u>str,�
 
 ### print
 
-是否输出到控制台,即使logfile不是输出到控制台,只要print为True就会向控制台输出,类型是**<u>bool,只能输入"True"或"false"</u>**,默认是True
+是否输出到控制台,即使logfile不是输出到控制台,只要print为True就会向控制台输出,类型是**<u>bool,只能输入"True"或"False"</u>**,默认是True
 
 ### sleep_time
 
