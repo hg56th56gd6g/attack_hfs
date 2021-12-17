@@ -116,15 +116,13 @@ chrome版本,在请求头里有用,但一般没啥影响,不用管,是**<u>str,�
 
 ### 如果你连指令都不想输入,并且是windows64系统
 
-可以下载"lazy_windows64_run.7z"
-
-解压后直接运行"run64.bat"
+可以下载"run64.bat"
+然后和"attack_hfs_windows64.7z"解压出的"64"文件夹放到同一目录,运行即可
 
 ### 如果你连指令都不想输入,并且是windows86系统
 
-可以下载"lazy_windows86_run.7z"
-
-解压后直接运行"run86.bat"
+可以下载"run86.bat"
+然后和"attack_hfs_windows86.7z"解压出的"86"文件夹放到同一目录,运行即可
 
 ### 链接0
 
