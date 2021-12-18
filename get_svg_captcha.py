@@ -1,5 +1,5 @@
 #-*- coding:utf-8 -*-
-from fractions import Fraction
+from decimal import Decimal
 from re import compile
 allxy=compile(r"[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}(?:\.[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}){0,1}")
 first_movey=compile(r"[\x4d\x6d][\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}(?:\.[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}){0,1}\x20[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}(?:\.[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}){0,1}").search
@@ -10,10 +10,10 @@ def get_miny(data):
     a=False
     b=allxy(data)
     b.next()
-    c=Fraction(b.next().group())
+    c=Decimal(b.next().group())
     for d in b:
         if a:
-            d=Fraction(d.group())
+            d=Decimal(d.group())
             if d<c:
                 c=d
         a=False if a else True
@@ -21,10 +21,10 @@ def get_miny(data):
 def get_width(data):
     a=False
     b=allxy(data)
-    c=d=Fraction(b.next().group())
+    c=d=Decimal(b.next().group())
     for e in b:
         if a:
-            e=Fraction(e.group())
+            e=Decimal(e.group())
             if e<c:
                 c=e
             elif d<e:
@@ -178,12 +178,12 @@ def get_svg_captcha(svg):
     for b in path(svg):
         b=b.group()[3:-1:]
         svg=len(b)
-        if svg in length_map:
-            a[Fraction(first_number(b).group())]=length_map[svg]
+        if svg in length_ma:
+            a[Decimal(first_number(b).group())]=length_map[svg]
         elif svg in miny_map:
-            a[Fraction(first_number(b).group())]=miny_map[svg](b)
+            a[Decimal(first_number(b).group())]=miny_map[svg](b)
         elif svg in first_movey_map:
-            a[Fraction(first_number(b).group())]=first_movey_map[svg](b)
+            a[Decimal(first_number(b).group())]=first_movey_map[svg](b)
         elif svg in width_map:
-            a[Fraction(first_number(b).group())]=width_map[svg](b)
+            a[Decimal(first_number(b).group())]=width_map[svg](b)
     return "".join((a[b] for b in sorted(a)))

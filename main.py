@@ -1,5 +1,5 @@
 #-*- coding:utf-8 -*-
-if __name__=="__main__":#命令行调用,"python main.py"或"python main.py poolsize=[int] roleType=[byte] chrome_version=[str] threads=[int] logfile=[str] print=[bool] sleep_time=[rational]",每个参数都是可选的,如有重复后面的会覆盖前面的,poolsize连接池大小默认255,roleType默认"1",chrome_version默认"96.0.4664.93",threads线程数量默认1,logfile日志文件路径默认打印到控制台,print默认将log打印到控制台即使logfile不是默认,sleep_time每次检查线程的循环sleep多少秒默认1秒
+if __name__=="__main__":#命令行调用,"python main.py"或"python main.py poolsize=[uint] roleType=[byte] chrome_version=[str] threads=[uint] logfile=[str] print=[bool] sleep_time=[rational]",每个参数都是可选的,如有重复后面的会覆盖前面的,poolsize连接池大小默认255,roleType默认"1",chrome_version默认"96.0.4664.93",threads线程数量默认1,logfile日志文件路径默认打印到控制台,print默认将log打印到控制台即使logfile不是默认,sleep_time每次检查线程的循环sleep多少秒默认1秒
     import requests
     Session=requests.Session
     requests.adapters.DEFAULT_POOLSIZE=255
@@ -8,7 +8,7 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
     from goto import with_goto
     from traceback import format_exc
     from time import sleep
-    from get_svg_captcha import get_svg_captcha,Fraction
+    from get_svg_captcha import get_svg_captcha,Decimal,compile
     from sys import argv,__stdout__,__stderr__,stdout,stderr
     from thread import start_new_thread,get_ident
     nothing=lambda data=None:None
@@ -20,6 +20,8 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
     chrome_version0="96.0.4664.93"
     chrome_version1=chrome_version0.split(".")[0]
     match_url=join(("https://hfs-be.yunxiao.com/v2/users/matched-users?roleType=",roleType,"&account="))
+    captcha0_data=join(("\",\"roleType\":",roleType,"}"))
+    captcha1_data=join(("\",\"roleType\":",roleType,",\"code\":\""))
     match_headers={"accept":"application/json, text/plain, */*",
     "accept-encoding":"gzip, deflate, br",
     "accept-language":"zh-CN,zh;q=0.9,en;q=0.8",
@@ -86,7 +88,7 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
             if json["code"]==0:
                 label.tag_captcha0
                 #第一次请求,判断是否需要填图形验证码
-                response=connect.post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha0_headers,data=join(("{\"phoneNumber\":\"",phone,"\",\"roleType\":",roleType,"}")))
+                response=connect.post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha0_headers,data=join(("{\"phoneNumber\":\"",phone,captcha0_data)))
                 json=response.json()
                 code=json["code"]
                 if code==0:
@@ -96,7 +98,7 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
                 elif code==4048:
                     label.tag_captcha1
                     #要填图形验证码的请求
-                    response=connect.post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha1_headers,data=join(("{\"phoneNumber\":\"",phone,"\",\"roleType\":",roleType,",\"code\":\"",get_svg_captcha(json["data"]["pic"]),"\"}")))
+                    response=connect.post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha1_headers,data=join(("{\"phoneNumber\":\"",phone,captcha1_data,get_svg_captcha(json["data"]["pic"]),"\"}")))
                     json=response.json()
                     code=json["code"]
                     if code==0:
@@ -121,7 +123,7 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
             return
     ################
     if len(argv)==1:
-        del requests,default_roleType,default_chrome_version
+        del requests,default_roleType,default_chrome_version,Decimal,compile,argv,start_new_thread,roleType,chrome_version0,chrome_version1,sleep
         write=stdout.write
         while True:
             send_loop(write)
@@ -130,26 +132,31 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
         threads=1
         sleep_time=1
         logfile=None
-        numbers=frozenset(("0","1","2","3","4","5","6","7","8","9"))
+        uint=compile(r"[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}").match
+        ufloat=compile(r"[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}(?:\.[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}){0,1}").match
+        version=compile(r"[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}(?:\.[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}){0,}").match
         for a in argv[1::]:
-            assert "=" in a,"unknown param"
+            assert a.count("=")==1,"wrong param format"
             a=a.split("=")
             key=a[0].strip()
             value=a[1].strip()
             if key=="poolsize":
-                for a in value:
-                    assert a in numbers,"poolsize is not int"
+                a=uint(value)
+                assert a and a.group()==value,"poolsize is not uint"
                 requests.adapters.DEFAULT_POOLSIZE=int(value)
-                assert 0<requests.adapters.DEFAULT_POOLSIZE,"poolsize<=0"
+                assert 0<requests.adapters.DEFAULT_POOLSIZE,"poolsize==0"
             elif key=="roleType":
                 assert len(value)==1,"roleType is not byte"
                 roleType=value
             elif key=="chrome_version":
+                a=version(value)
+                assert a and a.group()==value,"wrong chrome_version format"
                 chrome_version0=value
             elif key=="threads":
-                for a in value:
-                    assert a in numbers,"threads is not int"
+                a=uint(value)
+                assert a and a.group()==value,"threads is not uint"
                 threads=int(value)
+                assert 0<threads,"threads==0"
             elif key=="logfile":
                 if logfile:
                     logfile.close()
@@ -160,14 +167,18 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
                 elif value=="False":
                     console=False
                 else:
-                    assert False,"print is not bool"
+                    raise AssertionError("print is not bool")
             elif key=="sleep_time":
-                sleep_time=Fraction(value)
+                a=ufloat(value)
+                assert a and a.group()==value,"sleep_time is not ufloat"
+                sleep_time=Decimal(value)
             else:
-                assert False,"unknown param"
+                raise AssertionError("unknown param:"+key)
         ################
         if roleType!=default_roleType:
             match_url=join(("https://hfs-be.yunxiao.com/v2/users/matched-users?roleType=",roleType,"&account="))
+            captcha0_data=join(("\",\"roleType\":",roleType,"}"))
+            captcha1_data=join(("\",\"roleType\":",roleType,",\"code\":\""))
         if chrome_version0!=default_chrome_version:
             chrome_version1=chrome_version0.split(".")[0]
             match_headers["user-agent"]=captcha0_headers["user-agent"]=captcha1_headers["user-agent"]=join(("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/",chrome_version0," Safari/537.36"))
@@ -188,20 +199,17 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
                     write_logfile(data)
             else:
                 write=stdout.write
-        del numbers,console,requests,logfile,key,value,default_roleType,default_chrome_version
+        del console,requests,logfile,key,value,default_roleType,default_chrome_version,version,Decimal,compile,ufloat,uint,argv,roleType,chrome_version0,chrome_version1
         #给每个线程一把锁,线程退出会解锁,主进程一直判断锁是否被锁定,来保证主进程在子线程之后退出并补充可能因报错或未知原因退出的子线程,每次循环sleep,不然主进程占cpu太多,线程不要开太多,差不多半组就够了,多了速度会慢
         if threads==1:
-            del threads,a,sleep_time
+            del threads,a,sleep_time,start_new_thread,sleep
             while True:
                 send_loop(write)
-        assert 1<threads,"threads<=0"
         class get_lock:
             locked=False
             def onlock(self):
-                assert not self.locked,"onlock a locked lock"
                 self.locked=True
             def unlock(self):
-                assert self.locked,"unlock a unlocked lock"
                 self.locked=False
         locks=[]
         for a in range(threads):
@@ -209,7 +217,7 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
             lock.onlock()
             locks.append(lock)
             start_new_thread(send_loop,(write,lock.unlock))
-        del threads
+        del threads,lock,get_lock
         locks=tuple(locks)
         while True:
             for a in locks:
