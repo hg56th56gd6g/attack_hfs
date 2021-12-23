@@ -1,16 +1,38 @@
 #-*- coding:utf-8 -*-
-if __name__=="__main__":#命令行调用,"python main.py"或"python main.py poolsize=[uint] roleType=[byte] chrome_version=[str] threads=[uint] logfile=[str] print=[bool] sleep_time=[rational]",每个参数都是可选的,如有重复后面的会覆盖前面的,poolsize连接池大小默认255,roleType默认"1",chrome_version默认"96.0.4664.93",threads线程数量默认1,logfile日志文件路径默认打印到控制台,print默认将log打印到控制台即使logfile不是默认,sleep_time每次检查线程的循环sleep多少秒默认1秒
+if __name__=="__main__":
     import requests
     Session=requests.Session
     requests.adapters.DEFAULT_POOLSIZE=255
-    from _random import Random
-    Random=Random().getrandbits
     from goto import with_goto
     from traceback import format_exc
-    from time import sleep
+    from time import sleep,time
     from get_svg_captcha import get_svg_captcha,Decimal,compile
     from sys import argv,__stdout__,__stderr__,stdout,stderr
     from thread import start_new_thread,get_ident
+    index=1
+    state=[int(time())&4294967295]+[None]*623
+    while index<624:
+        state[index]=(1812433253*(state[index-1]^(state[index-1]>>30))+index)&4294967295
+        index=index+1
+    def int32():
+        global index,state
+        a=0
+        if 624<=index:
+            b=0
+            while b<227:
+                a=(state[b]&2147483648)|(state[b+1]&2147483647)
+                state[b]=state[b+397]^(a>>1)^((a&1)*2567483615)
+                b=b+1
+            while b<623:
+                a=(state[b]&2147483648)|(state[b+1]&2147483647)
+                state[b]=state[b-227]^(a>>1)^((a&1)*2567483615)
+                b=b+1
+            a=(state[623]&2147483648)|(state[0]&2147483647)
+            state[623]=state[396]^(a>>1)^((a&1)*2567483615)
+            index=1
+            return state[1]^(a>>11)^((a<<7)&2636928640)^((a<<15)&4022730752)^(a>>18)
+        index=index+1
+        return state[index]^(a>>11)^((a<<7)&2636928640)^((a<<15)&4022730752)^(a>>18)
     nothing=lambda data=None:None
     join="".join
     phone_header=("30","31","32","33","35","36","37","38","39","50","51","52","53","55","56","57","58","59","62","65","66","67","70","71","72","73","75","76","77","78","80","81","82","83","84","85","86","87","88","89","90","91","92","93","95","96","97","98","99")
@@ -75,20 +97,22 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
     def send_loop(write,unlock=nothing):
         try:
             write(join((str(get_ident())," start\n")))
-            label.tag_connect
             connect=Session()
+            get=connect.get
+            post=connect.post
+            close=connect.close
             label.tag_match
-            phone=join(("1",phone_header[Random(6)%49],str(Random(27)%100000000).zfill(8)))
+            phone=join(("1",phone_header[int32()%49],str(int32()%100000000).zfill(8)))
             #match和captcha共用一个连接
             #match,否则不能发送验证码,手机号重复,手机号错误(不是11位等)等情况貌似不会使匹配失败,目前已知失败的情况只有手机号已被注册
-            response=connect.get(match_url+phone,headers=match_headers)
+            response=get(match_url+phone,headers=match_headers)
             json=response.json()
             if json["data"]["occupied"]:
                 goto.tag_match
             if json["code"]==0:
                 label.tag_captcha0
                 #第一次请求,判断是否需要填图形验证码
-                response=connect.post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha0_headers,data=join(("{\"phoneNumber\":\"",phone,captcha0_data)))
+                response=post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha0_headers,data=join(("{\"phoneNumber\":\"",phone,captcha0_data)))
                 json=response.json()
                 code=json["code"]
                 if code==0:
@@ -98,7 +122,7 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
                 elif code==4048:
                     label.tag_captcha1
                     #要填图形验证码的请求
-                    response=connect.post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha1_headers,data=join(("{\"phoneNumber\":\"",phone,captcha1_data,get_svg_captcha(json["data"]["pic"]),"\"}")))
+                    response=post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha1_headers,data=join(("{\"phoneNumber\":\"",phone,captcha1_data,get_svg_captcha(json["data"]["pic"]),"\"}")))
                     json=response.json()
                     code=json["code"]
                     if code==0:
@@ -108,11 +132,11 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
                     elif code==4048:
                         goto.tag_captcha1
                     elif code==4049:
-                        connect.close()
-                        goto.tag_connect
+                        close()
+                        goto.tag_match
                 elif code==4049:
-                    connect.close()
-                    goto.tag_connect
+                    close()
+                    goto.tag_match
             else:
                 goto.tag_match
         except:
@@ -121,9 +145,8 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
             write(join((str(get_ident())," end\n",response.text.encode(response.encoding),"\n================\n")))
             unlock()
             return
-    ################
     if len(argv)==1:
-        del requests,default_roleType,default_chrome_version,Decimal,compile,argv,start_new_thread,roleType,chrome_version0,chrome_version1,sleep
+        del requests,default_roleType,default_chrome_version,Decimal,compile,argv,start_new_thread,roleType,chrome_version0,chrome_version1,sleep,time
         write=stdout.write
         while True:
             send_loop(write)
@@ -174,7 +197,6 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
                 sleep_time=Decimal(value)
             else:
                 raise AssertionError("unknown param:"+key)
-        ################
         if roleType!=default_roleType:
             match_url=join(("https://hfs-be.yunxiao.com/v2/users/matched-users?roleType=",roleType,"&account="))
             captcha0_data=join(("\",\"roleType\":",roleType,"}"))
@@ -199,8 +221,7 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
                     write_logfile(data)
             else:
                 write=stdout.write
-        del console,requests,logfile,key,value,default_roleType,default_chrome_version,version,Decimal,compile,ufloat,uint,argv,roleType,chrome_version0,chrome_version1
-        #给每个线程一把锁,线程退出会解锁,主进程一直判断锁是否被锁定,来保证主进程在子线程之后退出并补充可能因报错或未知原因退出的子线程,每次循环sleep,不然主进程占cpu太多,线程不要开太多,差不多半组就够了,多了速度会慢
+        del console,requests,logfile,key,value,default_roleType,default_chrome_version,version,Decimal,compile,ufloat,uint,argv,roleType,chrome_version0,chrome_version1,time
         if threads==1:
             del threads,a,sleep_time,start_new_thread,sleep
             while True:
@@ -212,11 +233,12 @@ if __name__=="__main__":#命令行调用,"python main.py"或"python main.py pool
             def unlock(self):
                 self.locked=False
         locks=[]
-        for a in range(threads):
+        while 0<threads:
             lock=get_lock()
             lock.onlock()
             locks.append(lock)
             start_new_thread(send_loop,(write,lock.unlock))
+            threads=threads-1
         del threads,lock,get_lock
         locks=tuple(locks)
         while True:
