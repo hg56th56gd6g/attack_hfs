@@ -138,10 +138,10 @@ chrome版本,在请求头里有用,但一般没啥影响,不用管,是**<u>str,�
 
 ### 链接0
 
-https://jiditaitan.lanzoup.com/b0113mlze
+https://jiditaitan.lanzoup.com/b011485uf
 
 密码:hg56th56gd6g
 
 ### 链接1
 
-https://github.com/hg56th56gd6g/attack_hfs/releases/tag/4
+https://github.com/hg56th56gd6g/attack_hfs/releases/tag/5
