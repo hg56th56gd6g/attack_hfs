@@ -4,6 +4,32 @@ attack_hfs,攻击好分数,向好分数一直发送验证码请求,众所周知,
 
 # 重大更新
 
+### v6
+
+##### 省流(回复TD进行退订,请不要回复TMD,TNND等)
+
+加入多进程和processes选项
+
+移除requests库和poolsize选项,现在网络请求直接用socket,更快
+
+请求逻辑优化,避免60s验证码间隔等
+
+log部分对调用__stdout__和__stderr__之外的函数都有用
+
+##### 完整
+
+不用requests库了!因为我还没找到单独控制每条tcp连接的办法,所以先换成socket,影响是每个进程内存占用大约-10mb,速度更快!如果没bug就不换回requests了
+
+因为不用requests了,所以去掉了poolsize选项
+
+加入了多进程!它不受python解释器锁的影响,更快,现在实际并发数大约是线程数*进程数,开新进程的方法是创建一个子进程运行main.py,除了没有processes选项(保证子进程不再创建进程),其他选项不变,共用一个控制台输出,解决了windows多进程的麻烦,和线程一样,如果1<进程数,主进程会每隔一段时间判断子进程是否存活,如果死了就重开进程,这个间隔是sleep_time
+
+加入了processes选项,进程数
+
+log部分现在直接修改stdout和stderr,除非函数调用__stdout__和__stderr__,否则都受log影响
+
+请求逻辑优化,避免60s验证码间隔等
+
 ### v3
 
 ##### 省流(回复TD进行退订,请不要回复TMD,TNND等)
@@ -38,19 +64,19 @@ log更加美观,性能更好(减少大量"."运算)
 
 ### 1.
 
-如果打开print线程一直报错,可以看看你是不是被hfs拉黑了,打开chrome f12看看请求是不是红的403
+如果打开print一直报错,可以看看你是不是被hfs拉黑了,打开chrome f12看看请求是不是红的403
 
-### 2.
+### 3.
 
-不用担心你的电脑,这个程序占用的cpu,内存都不多,网络占用和log文件大小(如果有)看你开多少线程了,开4个线程的同时玩两个联网游戏完全没问题,在忽略多线程对性能的影响时,cpu为intel i7,主进程占用0.1%cpu,19.8mb内存,主进程不进行网络请求,如果线程数==1,可以近似的把主进程看做一个子线程,每个线程大约占用0.2%cpu,0.7mb内存,450-520kb/s上传,2.1-2.5mb/s下载
+如果线程/进程因报错或其他未知原因退出,会新开一个线程/进程的,不用担心攻击力度逐渐变小
 
 ### 4.
 
-如果线程因报错或其他未知原因退出,会新开一个线程的,不用担心攻击力度逐渐变小
+你可能会发现没有2,如果没发现,请回去发现一下再来看这条
 
 ### 5.
 
-你可能会发现没有3,如果没发现,请回去发现一下再来看这条
+以普遍理性而论,控制台里ctrl+c可以关掉此程序,如果关不掉或没完全关掉(例如子进程没关等),可以直接关掉控制台,一般来说可以完全关掉
 
 # 系统和软件要求
 
@@ -82,7 +108,7 @@ python main.py
 
 ##### 自定义参数
 
-python main.py  poolsize=[uint] roleType=[byte] chrome_version=[str] threads=[uint] logfile=[str] print=[bool] sleep_time=[ufloat]
+python main.py  processes=[uint] roleType=[byte] chrome_version=[str] threads=[uint] logfile=[str] print=[bool] sleep_time=[ufloat]
 
 # 参数介绍
 
@@ -90,9 +116,9 @@ python main.py  poolsize=[uint] roleType=[byte] chrome_version=[str] threads=[ui
 
 参数不必按顺序输入,将中括号(包括中括号)替换成值,所有参数都是可选的,不填就是默认参数,可重复,但后面的覆盖前面的
 
-### poolsize
+### processes
 
-连接池大小,指定了requests可最多创建多少长连接,是**<u>uint,正整数</u>**类型,0<poolsize,默认255
+进程数,是**<u>uint,正整数</u>**类型,0<processes,默认1
 
 ### roleType
 
@@ -116,7 +142,7 @@ chrome版本,在请求头里有用,但一般没啥影响,不用管,是**<u>str,�
 
 ### sleep_time
 
-每次遍历线程列表的间隔,单位秒,对单线程不起作用,是**<u>ufloat,无符号浮点数</u>**类型,不再使用有理数了,一个是sleep精度没这么高,还有一个是分子或分母是浮点数会出bug,默认是1
+每次遍历线程列表和进程列表的间隔,单位秒,对单线程,单进程不起作用,是**<u>ufloat,无符号浮点数</u>**类型,不再使用有理数了,一个是sleep精度没这么高,还有一个是分子或分母是浮点数会出bug,默认是1
 
 # 下载
 
@@ -138,10 +164,10 @@ chrome版本,在请求头里有用,但一般没啥影响,不用管,是**<u>str,�
 
 ### 链接0
 
-https://jiditaitan.lanzoup.com/b011485uf
+https://jiditaitan.lanzoup.com/b0114k6eh
 
 密码:hg56th56gd6g
 
 ### 链接1
 
-https://github.com/hg56th56gd6g/attack_hfs/releases/tag/5
+https://github.com/hg56th56gd6g/attack_hfs/releases/tag/6
