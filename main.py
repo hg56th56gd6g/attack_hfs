@@ -1,14 +1,14 @@
 #-*- coding:utf-8 -*-
-if __name__=="__main__":
-    import requests
-    Session=requests.Session
-    requests.adapters.DEFAULT_POOLSIZE=255
+if __name__=="__main__" and __file__=="main.py":
+    from socket import socket,AF_INET,SOCK_STREAM
+    from ssl import wrap_socket
+    from json import loads
     from goto import with_goto
     from traceback import format_exc
-    from time import sleep,time
-    from get_svg_captcha import get_svg_captcha,Decimal,compile
-    from sys import argv,__stdout__,__stderr__,stdout,stderr
-    from thread import start_new_thread,get_ident
+    from time import time
+    from get_svg_captcha import get_svg_captcha,Decimal,compile,join
+    from sys import argv,stdout
+    from thread import get_ident
     index=1
     state=[int(time())&4294967295]+[None]*623
     while index<624:
@@ -33,20 +33,13 @@ if __name__=="__main__":
             return state[1]^(a>>11)^((a<<7)&2636928640)^((a<<15)&4022730752)^(a>>18)
         index=index+1
         return state[index]^(a>>11)^((a<<7)&2636928640)^((a<<15)&4022730752)^(a>>18)
-    nothing=lambda data=None:None
-    join="".join
     phone_header=("30","31","32","33","35","36","37","38","39","50","51","52","53","55","56","57","58","59","62","65","66","67","70","71","72","73","75","76","77","78","80","81","82","83","84","85","86","87","88","89","90","91","92","93","95","96","97","98","99")
-    default_roleType="1"
-    default_chrome_version="96.0.4664.93"
     roleType="1"
     chrome_version0="96.0.4664.93"
     chrome_version1=chrome_version0.split(".")[0]
-    match_url=join(("https://hfs-be.yunxiao.com/v2/users/matched-users?roleType=",roleType,"&account="))
-    captcha0_data=join(("\",\"roleType\":",roleType,"}"))
-    captcha1_data=join(("\",\"roleType\":",roleType,",\"code\":\""))
-    match_headers={"accept":"application/json, text/plain, */*",
-    "accept-encoding":"gzip, deflate, br",
-    "accept-language":"zh-CN,zh;q=0.9,en;q=0.8",
+    match_headers={"accept":"application/json",
+    "accept-charset":"utf-8",
+    "accept-language":"zh-CN",
     "origin":"https://www.haofenshu.com",
     "referer":"https://www.haofenshu.com/",
     "sec-ch-ua":join(("\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"",chrome_version1,"\", \"Google Chrome\";v=\"",chrome_version1,"\"")),
@@ -55,12 +48,14 @@ if __name__=="__main__":
     "sec-fetch-dest":"empty",
     "sec-fetch-mode":"cors",
     "sec-fetch-site":"cross-site",
-    "user-agent":join(("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/",chrome_version0," Safari/537.36"))}
+    "user-agent":join(("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/",chrome_version0," Safari/537.36")),
+    "Connection":"keep-alive",
+    "Host":"hfs-be.yunxiao.com"}
     captcha0_headers={"accept":match_headers["accept"],
-    "accept-encoding":match_headers["accept-encoding"],
+    "accept-charset":match_headers["accept-charset"],
     "accept-language":match_headers["accept-language"],
     "content-length":"42",
-    "content-type":"application/json;charset=UTF-8",
+    "content-type":"application/json;charset=utf-8",
     "origin":match_headers["origin"],
     "referer":match_headers["referer"],
     "sec-ch-ua":match_headers["sec-ch-ua"],
@@ -69,9 +64,11 @@ if __name__=="__main__":
     "sec-fetch-dest":match_headers["sec-fetch-dest"],
     "sec-fetch-mode":match_headers["sec-fetch-mode"],
     "sec-fetch-site":match_headers["sec-fetch-site"],
-    "user-agent":match_headers["user-agent"]}
+    "user-agent":match_headers["user-agent"],
+    "Connection":match_headers["Connection"],
+    "Host":match_headers["Host"]}
     captcha1_headers={"accept":captcha0_headers["accept"],
-    "accept-encoding":captcha0_headers["accept-encoding"],
+    "accept-charset":captcha0_headers["accept-charset"],
     "accept-language":captcha0_headers["accept-language"],
     "content-length":"56",
     "content-type":captcha0_headers["content-type"],
@@ -83,7 +80,12 @@ if __name__=="__main__":
     "sec-fetch-dest":captcha0_headers["sec-fetch-dest"],
     "sec-fetch-mode":captcha0_headers["sec-fetch-mode"],
     "sec-fetch-site":captcha0_headers["sec-fetch-site"],
-    "user-agent":captcha0_headers["user-agent"]}
+    "user-agent":captcha0_headers["user-agent"],
+    "Connection":captcha0_headers["Connection"],
+    "Host":captcha0_headers["Host"]}
+    match_str=join(("GET /v2/users/matched-users?roleType=",roleType,"&account=%s HTTP/1.1\r\n",join((join((a,": ",match_headers[a],"\r\n")) for a in match_headers)),"\r\n"))
+    captcha0_str=join(("POST /v2/native-users/verification-msg-with-captcha HTTP1.1\r\n",join((join((a,": ",captcha0_headers[a],"\r\n")) for a in captcha0_headers)),"\r\n{\"phoneNumber\":\"%s\",\"roleType\":",roleType,"}"))
+    captcha0_str=join(("POST /v2/native-users/verification-msg-with-captcha HTTP1.1\r\n",join((join((a,": ",captcha1_headers[a],"\r\n")) for a in captcha1_headers)),"\r\n{\"phoneNumber\":\"%s\",\"roleType\":",roleType,",\"code\":\"%s\"}"))
     #roleType:角色类型(疑似区分家长帐号和学生帐号,但目前来看输入什么都可以)
     #account:手机号
     #occupied:手机号是否已被注册
@@ -94,68 +96,95 @@ if __name__=="__main__":
     #code:4048,需要图形验证码,发送失败
     #code:4049,60s后才能重新发送,需要重新connect
     @with_goto
-    def send_loop(write,unlock=nothing):
+    def send_loop(write,unlock=None):
         try:
-            write(join((str(get_ident())," start\n")))
-            connect=Session()
-            get=connect.get
-            post=connect.post
-            close=connect.close
+            write(str(get_ident())+" start\n")
+            label.tag_connect
+            connect=wrap_socket(socket(AF_INET,SOCK_STREAM))
+            connect.settimeout(1)
+            connect.connect(("hfs-be.yunxiao.com",443))
+            send=connect.sendall
+            recv=connect.recv
             label.tag_match
             phone=join(("1",phone_header[int32()%49],str(int32()%100000000).zfill(8)))
             #match和captcha共用一个连接
             #match,否则不能发送验证码,手机号重复,手机号错误(不是11位等)等情况貌似不会使匹配失败,目前已知失败的情况只有手机号已被注册
-            response=get(match_url+phone,headers=match_headers)
-            json=response.json()
+            send(match_str%phone)
+            a=recv(1)
+            response=""
+            b={}
+            while a:
+                response=response+a
+                a=recv(1)
+            a=response.split("\r\n\r\n",1)
+            for c in a[0].split("\r\n")[1::]:
+                c=c.split(":")
+                b[c[0]]=c[1].lstrip()
+            json=loads(a[1])
             if json["data"]["occupied"]:
                 goto.tag_match
             if json["code"]==0:
-                label.tag_captcha0
                 #第一次请求,判断是否需要填图形验证码
-                response=post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha0_headers,data=join(("{\"phoneNumber\":\"",phone,captcha0_data)))
-                json=response.json()
+                send(captcha0_str%phone)
+                a=recv(1)
+                response=""
+                b={}
+                while a:
+                    response=response+a
+                    a=recv(1)
+                a=response.split("\r\n\r\n",1)
+                for c in a[0].split("\r\n")[1::]:
+                    c=c.split(":")
+                    b[c[0]]=c[1].lstrip()
+                json=loads(a[1])
                 code=json["code"]
-                if code==0:
-                    goto.tag_captcha0
-                elif code==1001:
-                    goto.tag_match
+                if code==0 or code==1001 or code==4049:
+                    connect.close()
+                    goto.tag_connect
                 elif code==4048:
                     label.tag_captcha1
                     #要填图形验证码的请求
-                    response=post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha1_headers,data=join(("{\"phoneNumber\":\"",phone,captcha1_data,get_svg_captcha(json["data"]["pic"]),"\"}")))
-                    json=response.json()
+                    send(captcha1_str%(phone,get_svg_captcha(json["data"]["pic"])))
+                    a=recv(1)
+                    response=""
+                    b={}
+                    while a:
+                        response=response+a
+                        a=recv(1)
+                    a=response.split("\r\n\r\n",1)
+                    for c in a[0].split("\r\n")[1::]:
+                        c=c.split(":")
+                        b[c[0]]=c[1].lstrip()
+                    json=loads(a[1])
                     code=json["code"]
-                    if code==0:
-                        goto.tag_captcha0
-                    elif code==1001:
-                        goto.tag_match
+                    if code==0 or code==1001 or code==4049:
+                        connect.close()
+                        goto.tag_connect
                     elif code==4048:
                         goto.tag_captcha1
-                    elif code==4049:
-                        close()
-                        goto.tag_match
-                elif code==4049:
-                    close()
-                    goto.tag_match
             else:
                 goto.tag_match
         except:
             write(join((str(get_ident())," error\n",format_exc(),"\n================\n")))
         finally:
-            write(join((str(get_ident())," end\n",response.text.encode(response.encoding),"\n================\n")))
-            unlock()
+            write(join((str(get_ident())," end\n",response,"\n================\n")))
+            if unlock:
+                unlock()
             return
     if len(argv)==1:
-        del requests,default_roleType,default_chrome_version,Decimal,compile,argv,start_new_thread,roleType,chrome_version0,chrome_version1,sleep,time
+        del Decimal,compile,argv,roleType,chrome_version0,chrome_version1,time,match_headers,captcha0_headers,captcha1_headers
         write=stdout.write
         while True:
             send_loop(write)
     else:
-        console=True
-        threads=1
-        sleep_time=1
+        from sys import __stdout__,stderr,executable
+        console="True"
+        threads="1"
+        sleep_time="1"
         logfile=None
-        uint=compile(r"[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}").match
+        processes="1"
+        args=[executable,"main.py"]
+        uint=compile(r"[\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{0,}").match
         ufloat=compile(r"[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}(?:\.[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}){0,1}").match
         version=compile(r"[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}(?:\.[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}){0,}").match
         for a in argv[1::]:
@@ -163,87 +192,118 @@ if __name__=="__main__":
             a=a.split("=")
             key=a[0].strip()
             value=a[1].strip()
-            if key=="poolsize":
-                a=uint(value)
-                assert a and a.group()==value,"poolsize is not uint"
-                requests.adapters.DEFAULT_POOLSIZE=int(value)
-                assert 0<requests.adapters.DEFAULT_POOLSIZE,"poolsize==0"
-            elif key=="roleType":
-                assert len(value)==1,"roleType is not byte"
+            if key=="roleType":
                 roleType=value
             elif key=="chrome_version":
-                a=version(value)
-                assert a and a.group()==value,"wrong chrome_version format"
                 chrome_version0=value
             elif key=="threads":
-                a=uint(value)
-                assert a and a.group()==value,"threads is not uint"
-                threads=int(value)
-                assert 0<threads,"threads==0"
+                threads=value
             elif key=="logfile":
-                if logfile:
-                    logfile.close()
-                logfile=open(value,"ab")
+                logfile=value
             elif key=="print":
-                if value=="True":
-                    console=True
-                elif value=="False":
-                    console=False
-                else:
-                    raise AssertionError("print is not bool")
+                console=value
             elif key=="sleep_time":
-                a=ufloat(value)
-                assert a and a.group()==value,"sleep_time is not ufloat"
-                sleep_time=Decimal(value)
+                sleep_time=value
+            elif key=="processes":
+                processes=value
             else:
                 raise AssertionError("unknown param:"+key)
-        if roleType!=default_roleType:
-            match_url=join(("https://hfs-be.yunxiao.com/v2/users/matched-users?roleType=",roleType,"&account="))
-            captcha0_data=join(("\",\"roleType\":",roleType,"}"))
-            captcha1_data=join(("\",\"roleType\":",roleType,",\"code\":\""))
-        if chrome_version0!=default_chrome_version:
-            chrome_version1=chrome_version0.split(".")[0]
-            match_headers["user-agent"]=captcha0_headers["user-agent"]=captcha1_headers["user-agent"]=join(("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/",chrome_version0," Safari/537.36"))
-            match_headers["sec-ch-ua"]=captcha0_headers["sec-ch-ua"]=captcha1_headers["sec-ch-ua"]=join(("\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"",chrome_version1,"\", \"Google Chrome\";v=\"",chrome_version1,"\""))
-        if logfile:
-            stdout=stderr=logfile
-        if __stdout__==stdout and __stderr__==stderr:   
-            if console:
-                write=stdout.write
-            else:
-                write=nothing
+        assert len(roleType)==1,"roleType is not byte"
+        a=version(chrome_version0)
+        assert a and a.group()==chrome_version0,"wrong chrome_version format"
+        a=uint(threads)
+        assert a and a.group()==threads,"threads is not uint"
+        if console=="True":
+            console=True
+        elif console=="False":
+            console=False
         else:
+            raise AssertionError("print is not bool")
+        a=ufloat(sleep_time)
+        assert a and a.group()==sleep_time,"sleep_time is not ufloat"
+        a=uint(processes)
+        assert a and a.group()==processes,"processes is not uint"
+        processes=int(processes)
+        args.append("sleep_time="+sleep_time)
+        sleep_time=Decimal(sleep_time)
+        args.append("threads="+threads)
+        threads=int(threads)
+        args.append("roleType="+roleType)
+        args.append("chrome_version="+chrome_version0)
+        chrome_version1=chrome_version0.split(".")[0]
+        match_headers["user-agent"]=captcha0_headers["user-agent"]=captcha1_headers["user-agent"]=join(("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/",chrome_version0," Safari/537.36"))
+        match_headers["sec-ch-ua"]=captcha0_headers["sec-ch-ua"]=captcha1_headers["sec-ch-ua"]=join(("\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"",chrome_version1,"\", \"Google Chrome\";v=\"",chrome_version1,"\""))
+        match_str=join(("GET /v2/users/matched-users?roleType=",roleType,"&account=%s HTTP/1.1\r\n",join((join((a,": ",match_headers[a],"\r\n")) for a in match_headers)),"\r\n"))
+        captcha0_str=join(("POST /v2/native-users/verification-msg-with-captcha HTTP1.1\r\n",join((join((a,": ",captcha0_headers[a],"\r\n")) for a in captcha0_headers)),"\r\n{\"phoneNumber\":\"%s\",\"roleType\":",roleType,"}"))
+        captcha0_str=join(("POST /v2/native-users/verification-msg-with-captcha HTTP1.1\r\n",join((join((a,": ",captcha1_headers[a],"\r\n")) for a in captcha1_headers)),"\r\n{\"phoneNumber\":\"%s\",\"roleType\":",roleType,",\"code\":\"%s\"}"))
+        if logfile:
+            args.append("logfile="+logfile)
+            logfile=open(logfile,"ab")
             if console:
+                write_logfile=logfile.write
                 write_console=__stdout__.write
-                write_logfile=stdout.write
-                def write(data):
-                    write_console(data)
-                    write_logfile(data)
+                class write:
+                    def write(self,data=""):
+                        write_console(data)
+                        write_logfile(data)
+                stdout=stderr=write()
             else:
-                write=stdout.write
-        del console,requests,logfile,key,value,default_roleType,default_chrome_version,version,Decimal,compile,ufloat,uint,argv,roleType,chrome_version0,chrome_version1,time
-        if threads==1:
-            del threads,a,sleep_time,start_new_thread,sleep
+                args.append("print=False")
+                stdout=stderr=logfile
+        elif not console:
+            args.append("print=False")
+            class write:
+                write=lambda self,data=None:None
+            stdout=stderr=write()
+        write=stdout.write
+        del console,logfile,key,value,version,argv,Decimal,compile,ufloat,uint,roleType,chrome_version0,chrome_version1,time,executable,match_headers,captcha0_headers,captcha1_headers
+        if processes==1:
+            del processes,args
+            if threads==1:
+                del threads,a,sleep_time
+                print(globals().keys())
+                from os import system
+                system("pause")
+                while True:
+                    send_loop(write)
+            else:
+                from thread import start_new_thread
+                from time import sleep
+                class get_lock:
+                    locked=False
+                    def onlock(self):
+                        self.locked=True
+                    def unlock(self):
+                        self.locked=False
+                lock_list=[]
+                while 0<threads:
+                    lock=get_lock()
+                    lock.onlock()
+                    lock_list.append(lock)
+                    start_new_thread(send_loop,(write,lock.unlock))
+                    threads=threads-1
+                del threads,lock,get_lock
+                lock_list=tuple(lock_list)
+                print(globals().keys())
+                from os import system
+                system("pause")
+                while True:
+                    for a in lock_list:
+                        if not a.locked:
+                            a.onlock()
+                            start_new_thread(send_loop,(write,a.unlock))
+                    sleep(sleep_time)
+        else:
+            from subprocess import Popen
+            from time import sleep
+            process_list=[]
+            while 0<processes:
+                process_list.append(Popen(args=args,bufsize=0))
+                processes=processes-1
+            process_list=tuple(process_list)
+            a=0
             while True:
-                send_loop(write)
-        class get_lock:
-            locked=False
-            def onlock(self):
-                self.locked=True
-            def unlock(self):
-                self.locked=False
-        locks=[]
-        while 0<threads:
-            lock=get_lock()
-            lock.onlock()
-            locks.append(lock)
-            start_new_thread(send_loop,(write,lock.unlock))
-            threads=threads-1
-        del threads,lock,get_lock
-        locks=tuple(locks)
-        while True:
-            for a in locks:
-                if not a.locked:
-                    a.onlock()
-                    start_new_thread(send_loop,(write,a.unlock))
-            sleep(sleep_time)
+                while a<processes:
+                    if process_list[a].poll()!=None:
+                        process_list[a]=Popen(args=args,bufsize=0)
+                sleep(sleep_time)

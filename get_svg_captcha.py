@@ -6,6 +6,7 @@ first_movey=compile(r"[\x4d\x6d][\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}(?
 path=compile(r"\x64\x3d\x22[^\x22]{1,}\x22").finditer
 first_number=allxy.search
 allxy=allxy.finditer
+join="".join
 def get_miny(data):
     a=False
     b=allxy(data)
@@ -186,4 +187,4 @@ def get_svg_captcha(svg):
             a[Decimal(first_number(b).group())]=first_movey_map[svg](b)
         elif svg in width_map:
             a[Decimal(first_number(b).group())]=width_map[svg](b)
-    return "".join((a[b] for b in sorted(a)))
+    return join((a[b] for b in sorted(a)))
