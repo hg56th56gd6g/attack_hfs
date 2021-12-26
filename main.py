@@ -96,12 +96,12 @@ if __name__=="__main__" and __file__=="main.py":
     #code:4048,需要图形验证码,发送失败
     #code:4049,60s后才能重新发送,需要重新connect
     @with_goto
-    def send_loop(write,unlock=None):
+    def send_loop():
         try:
             write(str(get_ident())+" start\n")
             label.tag_connect
             connect=wrap_socket(socket(AF_INET,SOCK_STREAM))
-            connect.settimeout(1)
+            connect.settimeout(timeout)
             connect.connect(("hfs-be.yunxiao.com",443))
             send=connect.sendall
             recv=connect.recv
@@ -168,21 +168,20 @@ if __name__=="__main__" and __file__=="main.py":
             write(join((str(get_ident())," error\n",format_exc(),"\n================\n")))
         finally:
             write(join((str(get_ident())," end\n",response,"\n================\n")))
-            if unlock:
-                unlock()
-            return
     if len(argv)==1:
         del Decimal,compile,argv,roleType,chrome_version0,chrome_version1,time,match_headers,captcha0_headers,captcha1_headers
+        timeout=1
         write=stdout.write
         while True:
-            send_loop(write)
+            send_loop()
     else:
         from sys import __stdout__,stderr,executable
-        console="True"
-        threads="1"
-        sleep_time="1"
+        console=True
+        threads=1
+        sleep_time=1
         logfile=None
-        processes="1"
+        processes=1
+        timeout=1
         args=[executable,"main.py"]
         uint=compile(r"[\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{0,}").match
         ufloat=compile(r"[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}(?:\.[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}){0,1}").match
@@ -206,36 +205,52 @@ if __name__=="__main__" and __file__=="main.py":
                 sleep_time=value
             elif key=="processes":
                 processes=value
+            elif key=="timeout":
+                timeout=value
             else:
                 raise AssertionError("unknown param:"+key)
-        assert len(roleType)==1,"roleType is not byte"
-        a=version(chrome_version0)
-        assert a and a.group()==chrome_version0,"wrong chrome_version format"
-        a=uint(threads)
-        assert a and a.group()==threads,"threads is not uint"
-        if console=="True":
-            console=True
-        elif console=="False":
-            console=False
-        else:
-            raise AssertionError("print is not bool")
-        a=ufloat(sleep_time)
-        assert a and a.group()==sleep_time,"sleep_time is not ufloat"
-        a=uint(processes)
-        assert a and a.group()==processes,"processes is not uint"
-        processes=int(processes)
-        args.append("sleep_time="+sleep_time)
-        sleep_time=Decimal(sleep_time)
-        args.append("threads="+threads)
-        threads=int(threads)
-        args.append("roleType="+roleType)
-        args.append("chrome_version="+chrome_version0)
-        chrome_version1=chrome_version0.split(".")[0]
-        match_headers["user-agent"]=captcha0_headers["user-agent"]=captcha1_headers["user-agent"]=join(("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/",chrome_version0," Safari/537.36"))
-        match_headers["sec-ch-ua"]=captcha0_headers["sec-ch-ua"]=captcha1_headers["sec-ch-ua"]=join(("\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"",chrome_version1,"\", \"Google Chrome\";v=\"",chrome_version1,"\""))
-        match_str=join(("GET /v2/users/matched-users?roleType=",roleType,"&account=%s HTTP/1.1\r\n",join((join((a,": ",match_headers[a],"\r\n")) for a in match_headers)),"\r\n"))
-        captcha0_str=join(("POST /v2/native-users/verification-msg-with-captcha HTTP1.1\r\n",join((join((a,": ",captcha0_headers[a],"\r\n")) for a in captcha0_headers)),"\r\n{\"phoneNumber\":\"%s\",\"roleType\":",roleType,"}"))
-        captcha0_str=join(("POST /v2/native-users/verification-msg-with-captcha HTTP1.1\r\n",join((join((a,": ",captcha1_headers[a],"\r\n")) for a in captcha1_headers)),"\r\n{\"phoneNumber\":\"%s\",\"roleType\":",roleType,",\"code\":\"%s\"}"))
+        if roleType!="1":
+            assert len(roleType)==1,"roleType is not byte"
+            args.append("roleType="+roleType)
+            a=True
+        if chrome_version0!="96.0.4664.93":
+            a=version(chrome_version0)
+            assert a and a.group()==chrome_version0,"wrong chrome_version format"
+            args.append("chrome_version="+chrome_version0)
+            a=True
+        if a:
+            chrome_version1=chrome_version0.split(".")[0]
+            match_headers["user-agent"]=captcha0_headers["user-agent"]=captcha1_headers["user-agent"]=join(("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/",chrome_version0," Safari/537.36"))
+            match_headers["sec-ch-ua"]=captcha0_headers["sec-ch-ua"]=captcha1_headers["sec-ch-ua"]=join(("\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"",chrome_version1,"\", \"Google Chrome\";v=\"",chrome_version1,"\""))
+            match_str=join(("GET /v2/users/matched-users?roleType=",roleType,"&account=%s HTTP/1.1\r\n",join((join((a,": ",match_headers[a],"\r\n")) for a in match_headers)),"\r\n"))
+            captcha0_str=join(("POST /v2/native-users/verification-msg-with-captcha HTTP1.1\r\n",join((join((a,": ",captcha0_headers[a],"\r\n")) for a in captcha0_headers)),"\r\n{\"phoneNumber\":\"%s\",\"roleType\":",roleType,"}"))
+            captcha0_str=join(("POST /v2/native-users/verification-msg-with-captcha HTTP1.1\r\n",join((join((a,": ",captcha1_headers[a],"\r\n")) for a in captcha1_headers)),"\r\n{\"phoneNumber\":\"%s\",\"roleType\":",roleType,",\"code\":\"%s\"}"))
+        if threads!=1:
+            a=uint(threads)
+            assert a and a.group()==threads,"threads is not uint"
+            args.append("threads="+threads)
+            threads=int(threads)
+        if processes!=1:
+            a=uint(processes)
+            assert a and a.group()==processes,"processes is not uint"
+            processes=int(processes)
+        if sleep_time!=1:
+            a=ufloat(sleep_time)
+            assert a and a.group()==sleep_time,"sleep_time is not ufloat"
+            args.append("sleep_time="+sleep_time)
+            sleep_time=Decimal(sleep_time)
+        if console!=True:
+            if console=="True":
+                console=True
+            elif console=="False":
+                console=False
+            else:
+                raise AssertionError("print is not bool")
+        if timeout!=1:
+            a=ufloat(timeout)
+            assert a and a.group()==timeout,"timeout is not ufloat"
+            args.append("timeout="+timeout)
+            timeout=Decimal(timeout)
         if logfile:
             args.append("logfile="+logfile)
             logfile=open(logfile,"ab")
@@ -261,37 +276,34 @@ if __name__=="__main__" and __file__=="main.py":
             del processes,args
             if threads==1:
                 del threads,a,sleep_time
-                print(globals().keys())
-                from os import system
-                system("pause")
                 while True:
-                    send_loop(write)
+                    send_loop()
             else:
                 from thread import start_new_thread
                 from time import sleep
-                class get_lock:
-                    locked=False
-                    def onlock(self):
-                        self.locked=True
-                    def unlock(self):
-                        self.locked=False
-                lock_list=[]
+                class thread:
+                    start=False
+                    stop=False
+                    def reset(self):
+                        self.start=False
+                        self.stop=False
+                    def run(self):
+                        try:
+                            self.start=True
+                            send_loop()
+                        finally:
+                            self.stop=True
+                thread_list=[]
                 while 0<threads:
-                    lock=get_lock()
-                    lock.onlock()
-                    lock_list.append(lock)
-                    start_new_thread(send_loop,(write,lock.unlock))
+                    thread_list.append(thread())
                     threads=threads-1
-                del threads,lock,get_lock
-                lock_list=tuple(lock_list)
-                print(globals().keys())
-                from os import system
-                system("pause")
+                del threads,thread
+                thread_list=tuple(thread_list)
                 while True:
-                    for a in lock_list:
-                        if not a.locked:
-                            a.onlock()
-                            start_new_thread(send_loop,(write,a.unlock))
+                    for a in thread_list:
+                        if not (a.start and (not a.stop)):
+                            a.reset()
+                            start_new_thread(a.run,())
                     sleep(sleep_time)
         else:
             from subprocess import Popen
