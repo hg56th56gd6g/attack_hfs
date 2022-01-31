@@ -1,13 +1,12 @@
 #-*- coding:utf-8 -*-
-if __name__=="__main__" and __file__=="main.py":
-    from json import loads
+if __name__=="__main__" and __file__=="main_requests.py":
+    import sys
     from goto import with_goto
     from traceback import format_exc
     from get_svg_captcha import get_svg_captcha,join
-    from sys import argv,stdout
     from thread import get_ident
-    from proxy import int32
-    import proto
+    from proxy import int32,getproxy
+    from requests import Session
     phone_header=("30","31","32","33","35","36","37","38","39","50","51","52","53","55","56","57","58","59","62","65","66","67","70","71","72","73","75","76","77","78","80","81","82","83","84","85","86","87","88","89","90","91","92","93","95","96","97","98","99")
     roleType="1"
     chrome_version0="96.0.4664.93"
@@ -58,62 +57,66 @@ if __name__=="__main__" and __file__=="main.py":
     "user-agent":captcha0_headers["user-agent"],
     "connection":captcha0_headers["connection"],
     "host":captcha0_headers["host"]}
-    match_str=join(("GET /v2/users/matched-users?roleType=",roleType,"&account=%s HTTP/1.1\r\n",join((join((a,": ",match_headers[a],"\r\n")) for a in match_headers)),"\r\n"))
-    captcha0_str=join(("POST /v2/native-users/verification-msg-with-captcha HTTP1.1\r\n",join((join((a,": ",captcha0_headers[a],"\r\n")) for a in captcha0_headers)),"\r\n{\"phoneNumber\":\"%s\",\"roleType\":",roleType,"}"))
-    captcha1_str=join(("POST /v2/native-users/verification-msg-with-captcha HTTP1.1\r\n",join((join((a,": ",captcha1_headers[a],"\r\n")) for a in captcha1_headers)),"\r\n{\"phoneNumber\":\"%s\",\"roleType\":",roleType,",\"code\":\"%s\"}"))
-    #roleType:角色类型(疑似区分家长帐号和学生帐号,但目前来看输入什么都可以)
-    #account:手机号
-    #occupied:手机号是否已被注册
-    #unionId:翻译为"统一号",但返回值只有null不知道有啥用
-    #boundWechat,boundApple:在chrome和via上只有false(疑似来自/跳转至微信/苹果(safari?))
-    #code:0,成功,重新connect
-    #code:1001,参数错误,出现在没match就请求的时候,与match的请求不是同一个连接,与match的请求不是同一个手机号,或者就是字面意思比如长度不对等,不要重新match,容易被检测,重新connect
-    #code:4048,需要图形验证码,发送失败,跳到captcha1
-    #code:4049,60s后才能重新发送,重新connect刷新时间,(或内部错误)
-    getapi=lambda a:(lambda:proto.srwc(a),a.sendall,a.recv)
-    getcnct=lambda:getapi(proto.ssl_tls(proto.tcp(("hfs-be.yunxiao.com",443),blocking=timeout)))
-    def getdata(a):
-        b=a(1)
-        c=""
-        while b:
-            c=c+b
-            b=a(1)
-        return c
-    timeout=True
+    match_str=join(("https://hfs-be.yunxiao.com/v2/users/matched-users?roleType=",roleType,"&account="))
+    captcha0_str=join(("{\"phoneNumber\":\"%s\",\"roleType\":",roleType,"}"))
+    captcha1_str=join(("{\"phoneNumber\":\"%s\",\"roleType\":",roleType,",\"code\":\"%s\"}"))
+    debug=False
+    proxy=False
     @with_goto
     def send_loop():
         try:
             ident=str(get_ident())
             write(ident+" start\n")
-            label.tag_connect
-            srwc,send,recv=getcnct()
+            connect=Session()
+            get=connect.get
+            post=connect.post
+            close=connect.close
             label.tag_match
             phone=join(("1",phone_header[int32()%49],str(int32()%100000000).zfill(8)))
-            send(match_str%phone)
-            response=getdata(recv)
-            json=loads(response.split("\r\n\r\n",1)[1])
-            #手机号已被注册
+            while True:
+                proxies=getproxy()
+                if proxies[0]=="http":
+                    proxies={"https":join(("http://",proxies[1][0],":",str(proxies[1][1])))}
+                    break
+                if proxies[0]=="https":
+                    proxies={"https":join(("https://",proxies[1][0],":",str(proxies[1][1])))}
+                    break
+            if debug:
+                write(join(("********",ident,"_proxies********\n",proxies["https"],"\n********debug********\n")))
+            if proxy:
+                response=get(match_str+phone,headers=match_headers,proxies=proxies)
+            else:
+                response=get(match_str+phone,headers=match_headers)
+            if debug:
+                write(join(("********",ident,"_response********\n",response.text.encode("utf8"),"\n********debug********\n")))
+            json=response.json()
             if json["data"]["occupied"]:
                 goto.tag_match
             if json["code"]==0:
-                #第一次请求,判断是否需要填图形验证码
-                send(captcha0_str%phone)
-                response=getdata(recv)
-                json=loads(response.split("\r\n\r\n",1)[1])
+                if proxy:
+                    response=post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha0_headers,data=captcha0_str%phone,proxies=proxies)
+                else:
+                    response=post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha0_headers,data=captcha0_str%phone)
+                if debug:
+                    write(join(("********",ident,"_response********\n",response.text.encode("utf8"),"\n********debug********\n")))
+                json=response.json()
                 code=json["code"]
                 if code==0 or code==1001 or code==4049:
-                    srwc()
-                    goto.tag_connect
+                    close()
+                    goto.tag_match
                 elif code==4048:
                     label.tag_captcha1
-                    #要填图形验证码的请求
-                    send(captcha1_str%(phone,get_svg_captcha(json["data"]["pic"])))
-                    response=getdata(recv)
-                    json=loads(response.split("\r\n\r\n",1)[1])
+                    if proxy:
+                        response=post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha1_headers,data=captcha1_str%(phone,get_svg_captcha(json["data"]["pic"])),proxies=proxies)
+                    else:
+                        response=post("https://hfs-be.yunxiao.com/v2/native-users/verification-msg-with-captcha",headers=captcha1_headers,data=captcha1_str%(phone,get_svg_captcha(json["data"]["pic"])))
+                    if debug:
+                        write(join(("********",ident,"_response********\n",response.text.encode("utf8"),"\n********debug********\n")))
+                    json=response.json()
                     code=json["code"]
                     if code==0 or code==1001 or code==4049:
-                        srwc()
-                        goto.tag_connect
+                        close()
+                        goto.tag_match
                     elif code==4048:
                         goto.tag_captcha1
             else:
@@ -122,29 +125,27 @@ if __name__=="__main__" and __file__=="main.py":
             write(join((ident," error\n",format_exc(),"\n================\n")))
         finally:
             try:
-                write(join((ident," end\n",response,"\n================\n")))
+                write(join((ident," end\n",response.text,"\n================\n")))
             except:
                 write(ident+" end\nget response error\n================\n")
-    if len(argv)==1:
-        del argv,roleType,chrome_version0,chrome_version1,match_headers,captcha0_headers,captcha1_headers
-        write=stdout.write
+    if len(sys.argv)==1:
+        write=sys.stdout.write
+        del sys,roleType,chrome_version0,chrome_version1
         while True:
             send_loop()
     else:
-        from get_svg_captcha import compile
-        from sys import stderr,executable
+        from get_svg_captcha import compile,Decimal
         console=True
         threads=1
         sleep_time=1
         logfile=None
         processes=1
-        debug=False
-        proxy=False
-        args=[executable,"main.py"]
+        timeout=None
+        args=[sys.executable,"main_requests.py"]
         uint=compile(r"[\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{0,}").match
         ufloat=compile(r"[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}(?:\.[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}){0,1}").match
         version=compile(r"[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}(?:\.[\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39]{1,}){0,}").match
-        for a in argv[1::]:
+        for a in sys.argv[1::]:
             assert a.count("=")==1,"wrong param format"
             a=a.split("=")
             key=a[0].strip()
@@ -184,9 +185,9 @@ if __name__=="__main__" and __file__=="main.py":
             chrome_version1=chrome_version0.split(".")[0]
             match_headers["user-agent"]=captcha0_headers["user-agent"]=captcha1_headers["user-agent"]=join(("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/",chrome_version0," Safari/537.36"))
             match_headers["sec-ch-ua"]=captcha0_headers["sec-ch-ua"]=captcha1_headers["sec-ch-ua"]=join(("\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"",chrome_version1,"\", \"Google Chrome\";v=\"",chrome_version1,"\""))
-            match_str=join(("GET /v2/users/matched-users?roleType=",roleType,"&account=%s HTTP/1.1\r\n",join((join((a,": ",match_headers[a],"\r\n")) for a in match_headers)),"\r\n"))
-            captcha0_str=join(("POST /v2/native-users/verification-msg-with-captcha HTTP1.1\r\n",join((join((a,": ",captcha0_headers[a],"\r\n")) for a in captcha0_headers)),"\r\n{\"phoneNumber\":\"%s\",\"roleType\":",roleType,"}"))
-            captcha1_str=join(("POST /v2/native-users/verification-msg-with-captcha HTTP1.1\r\n",join((join((a,": ",captcha1_headers[a],"\r\n")) for a in captcha1_headers)),"\r\n{\"phoneNumber\":\"%s\",\"roleType\":",roleType,",\"code\":\"%s\"}"))
+            match_str=join(("https://hfs-be.yunxiao.com/v2/users/matched-users?roleType=",roleType,"&account="))
+            captcha0_str=join(("{\"phoneNumber\":\"%s\",\"roleType\":",roleType,"}"))
+            captcha1_str=join(("{\"phoneNumber\":\"%s\",\"roleType\":",roleType,",\"code\":\"%s\"}"))
         if threads!=1:
             a=uint(threads)
             assert a and a.group()==threads,"threads is not uint"
@@ -200,90 +201,53 @@ if __name__=="__main__" and __file__=="main.py":
             a=ufloat(sleep_time)
             assert a and a.group()==sleep_time,"sleep_time is not ufloat"
             args.append("sleep_time="+sleep_time)
-            sleep_time=float(sleep_time)
+            sleep_time=Decimal(sleep_time)
         if console!=True:
-            if console=="True":
-                console=True
-            elif console=="False":
+            if console=="False":
                 console=False
-            else:
+            elif console!="True":
                 raise AssertionError("print is not bool")
-        if timeout!=True and timeout!="True":
-            if timeout==False or timeout=="False":
-                timeout=False
-            else:
-                a=ufloat(timeout)
-                assert a and a.group()==timeout,"timeout is not ufloat or bool"
-                args.append("timeout="+timeout)
-                timeout=float(timeout)
+        if timeout!=None:
+            from socket import setdefaulttimeout
+            a=ufloat(timeout)
+            assert a and a.group()==timeout,"timeout is not ufloat"
+            args.append("timeout="+timeout)
+            timeout=Decimal(timeout)
+            setdefaulttimeout(timeout)
+            del setdefaulttimeout
         if debug!=False:
             if debug=="True":
                 args.append("debug=True")
-                def getdata(a):
-                    b=a(1)
-                    c=""
-                    while b:
-                        c=c+b
-                        b=a(1)
-                    write(join(("********",str(get_ident()),"********\n",c,"\n********debug********\n")))
-                    return c
+                debug=True
             elif debug!="False":
                 raise AssertionError("debug is not bool")
         if proxy!=False:
             if proxy=="True":
-                from proxy import getproxy
                 args.append("proxy=True")
-                proxy_data={"user-agent":captcha1_headers["user-agent"],
-                "proxy-connection":captcha1_headers["connection"],
-                "host":"hfs-be.yunxiao.com:443"}
-                proxy_data=join((join((a,": ",proxy_data[a],"\r\n")) for a in proxy_data))
-                def getcnct():
-                    while True:
-                        a,b,c=getproxy()
-                        if a=="socks4":
-                            a=proto.socks4("hfs-be.yunxiao.com",443,b,c if c else timeout)
-                            if a:
-                                return getapi(a)
-                        elif a=="socks4a":
-                            a=proto.socks4a("hfs-be.yunxiao.com",443,b,c if c else timeout)
-                            if a:
-                                return getapi(a)
-                        elif a=="socks5":
-                            a=proto.socks5("hfs-be.yunxiao.com",443,b,c if c else timeout)
-                            if a:
-                                return getapi(a)
-                        elif a=="socks5a":
-                            a=proto.socks5a("hfs-be.yunxiao.com",443,b,c if c else timeout)
-                            if a:
-                                return getapi(a)
-                        elif a=="http":
-                            a=proto.http("hfs-be.yunxiao.com",443,b,proxy_data,c if c else timeout)
-                            if a:
-                                return getapi(a)
+                proxy=True
             elif proxy!="False":
                 raise AssertionError("proxy is not bool")
         if logfile:
             args.append("logfile="+logfile)
             logfile=open(logfile,"ab")
             if console:
-                from sys import __stdout__
                 write_logfile=logfile.write
-                write_console=__stdout__.write
+                write_console=sys.__stdout__.write
                 class write:
                     def write(self,data=""):
                         write_console(data)
                         write_logfile(data)
-                stdout=stderr=write()
+                sys.stdout=sys.stderr=write()
             else:
                 args.append("print=False")
-                stdout=stderr=logfile
+                sys.stdout=sys.stderr=logfile
         elif not console:
             args.append("print=False")
             class write:
                 write=lambda self,data=None:None
-            stdout=stderr=write()
-        write=stdout.write
-        del console,logfile,key,value,version,argv,compile,ufloat,uint,roleType,chrome_version0,chrome_version1,executable,match_headers,captcha0_headers,captcha1_headers,debug,proxy
+            sys.stdout=sys.stderr=write()
+        write=sys.stdout.write
+        del console,logfile,key,value,version,Decimal,compile,ufloat,uint,roleType,chrome_version0,chrome_version1,timeout,sys
         if processes==1:
             del processes,args
             if threads==1:

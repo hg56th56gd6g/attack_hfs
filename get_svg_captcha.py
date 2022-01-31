@@ -179,7 +179,7 @@ def get_svg_captcha(svg):
     for b in path(svg):
         b=b.group()[3:-1:]
         svg=len(b)
-        if svg in length_ma:
+        if svg in length_map:
             a[Decimal(first_number(b).group())]=length_map[svg]
         elif svg in miny_map:
             a[Decimal(first_number(b).group())]=miny_map[svg](b)
